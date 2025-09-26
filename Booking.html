@@ -235,13 +235,27 @@ Usage:
 
       const result = await res.json();
 
+
       if (result.status === "success") {
-        alertArea.innerHTML = `<div class="alert alert-success">✅ บันทึกสำเร็จ</div>`;
-        document.getElementById("bookingForm").reset();
-        fetchBookings();
+        alertArea.innerHTML = `<div class="alert alert-success">${result.message}</div>`;
+        form.reset();
         form.classList.remove("was-validated");
+        fetchBookings();
       } else {
-        alertArea.innerHTML = `<div class="alert alert-danger">❌ ${result.message || "บันทึกไม่สำเร็จ"}</div>`;
+        let conflictDetails = "";
+        if (result.conflicts) {
+          conflictDetails = result.conflicts.map(c =>
+            `• เวลา: ${c.existingStart} - ${c.existingEnd} <br/>` +
+            `  ผู้จอง: ${c.contactName} (${c.contactPhone}) <br/>` +
+            `  วัตถุประสงค์: ${c.purpose}`
+          ).join("<br/><br/>");
+        }
+        alertArea.innerHTML = `
+          <div class="alert alert-danger">
+            ${result.message} <br/><br/>
+            ${conflictDetails}
+          </div>
+        `;
       }
     } catch (err) {
       alertArea.innerHTML = `<div class="alert alert-danger">❌ เกิดข้อผิดพลาด: ${err}</div>`;
