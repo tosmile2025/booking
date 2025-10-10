@@ -36,6 +36,20 @@ Usage:
     </style>
   </head>
   <body>
+
+    <div class="modal fade" id="loadingModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="loadingModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered border-0">
+            <div class="modal-content" style="background-color: transparent; border: none;">
+                <div class="modal-body text-center">
+                    <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-3 fs-5 text-white">กำลังโหลดข้อมูล...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="container-fluid py-4">
       <div class="row justify-content-center">
         <div class="col-lg-8 col-md-10">
@@ -87,11 +101,15 @@ Usage:
                   <div class="invalid-feedback">กรุณากรอกเหตุผล</div>
                 </div>
 
-                <div class="col-12 d-grid">
+                <div class="col-6 d-grid">
                   <button id="submitBtn" class="btn btn-primary btn-lg" type="submit">
                     <span id="btnText">ส่งคำขอ</span>
                     <span id="btnSpinner" class="spinner-border spinner-border-sm ms-2 d-none" role="status" aria-hidden="true"></span>
                   </button>
+                </div>
+
+                <div class="col-6 d-grid">
+                  <a href="index.html" class="btn btn-outline-secondary btn-lg w-100">กลับไปที่ปฏิทิน</a>
                 </div>
 
                 <div class="col-12">
@@ -134,143 +152,169 @@ Usage:
 
     <script>
            let webAppUrl = `${WEB_APP_DATA}`;
-           const bookingTableBody = document.getElementById('bookingTableBody');
-           const roomDropdown = document.getElementById('roomDropdown');
 
-           // ✅ จุดสำคัญ: เมื่อหน้าเว็บพร้อม ให้เรียกใช้ทั้งสองฟังก์ชันทันที
-           document.addEventListener('DOMContentLoaded', function() {
-               fetchBookings();
-               fetchRooms();
-           });
+               const bookingTableBody = document.getElementById('bookingTableBody');
+               const roomDropdown = document.getElementById('roomDropdown');
 
-           // ฟังก์ชันสำหรับ fetch "ข้อมูลการจอง" (เหมือนเดิม)
-           async function fetchBookings() {
-               const url = `${webAppUrl}?action=getBookings`;
-               try {
-                   const response = await fetch(url);
-                   const data = await response.json();
-                   if (data.error) throw new Error(data.message);
+               // 1. เตรียมตัวแปรสำหรับควบคุม Modal นอกฟังก์ชัน
+               const loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'));
 
-                   bookingTableBody.innerHTML = '';
-                   if (data.length === 0) {
-                       bookingTableBody.innerHTML = '<tr><td colspan="6">ไม่มีข้อมูลการจอง</td></tr>';
-                       return;
+
+               // ✅ 2. ทำให้ Event Listener เป็น async function เพื่อให้ใช้ await ได้
+               document.addEventListener('DOMContentLoaded', async function() {
+
+                   try {
+                       // 3. แสดง Popup "กำลังโหลด..." ทันที
+                       loadingModal.show();
+
+                       // 4. ใช้ Promise.all เพื่อรอให้ fetch ทั้งสองอย่างทำงานเสร็จสิ้น
+                       // การทำแบบนี้จะทำให้ fetch ทั้งสองอย่างเริ่มทำงานพร้อมกัน ช่วยให้โหลดเร็วขึ้น
+                       await Promise.all([
+                           fetchBookings(),
+                           fetchRooms()
+                       ]);
+
+                   } catch (error) {
+                       // ดักจับข้อผิดพลาดที่อาจเกิดขึ้นระหว่างการรอ Promise.all
+                       // (ถึงแม้ฟังก์ชันลูกจะจัดการ error ของตัวเองแล้วก็ตาม)
+                       console.error("An error occurred during initial data loading:", error);
+                   } finally {
+                       // 5. ซ่อน Popup เสมอ ไม่ว่าจะสำเร็จหรือล้มเหลว
+                       // ใช้ setTimeout เล็กน้อยเพื่อให้ดูนุ่มนวลขึ้น (ไม่บังคับ)
+                       setTimeout(() => {
+                           loadingModal.hide();
+                       }, 300); // หน่วงเวลา 0.3 วินาที
                    }
-                   data.forEach(booking => {
-                       const row = `<tr>
-                                       <td>${booking.room}</td>
-                                       <td>${booking.date}</td>
-                                       <td>${booking.time}</td>
-                                       <td>${booking.booker} (📞${booking.tel})</td>
-                                       <td>${booking.purpose}</td>
-                                       <td>${booking.timestamp}</td>
-                                    </tr>`;
-                       bookingTableBody.insertAdjacentHTML('beforeend', row);
-                   });
-               } catch (error) {
-                   bookingTableBody.innerHTML = `<tr><td colspan="6">เกิดข้อผิดพลาด: ${error.message}</td></tr>`;
-               }
-           }
+               });
 
-           // ฟังก์ชันสำหรับ fetch "รายชื่อห้อง" (เหมือนเดิม)
-           async function fetchRooms() {
-               const url = `${webAppUrl}?action=getRooms`;
-               try {
-                   const response = await fetch(url);
-                   const roomList = await response.json();
-                   if (roomList.error) throw new Error(roomList.message);
+               // ฟังก์ชันสำหรับ fetch "ข้อมูลการจอง" (โค้ดเดิมของคุณ)
+               async function fetchBookings() {
+                   const url = `${webAppUrl}?action=getBookings`;
+                   try {
+                       const response = await fetch(url);
+                       if (!response.ok) throw new Error('Network response was not ok.');
 
-                   roomDropdown.innerHTML = '<option value="">-- กรุณาเลือกห้อง --</option>';
-                   roomList.forEach(room => {
-                       const option = `<option value="${room}">${room}</option>`;
-                       roomDropdown.insertAdjacentHTML('beforeend', option);
-                   });
-               } catch (error) {
-                   roomDropdown.innerHTML = '<option>โหลดข้อมูลล้มเหลว</option>';
+                       const data = await response.json();
+                       if (data.error) throw new Error(data.message);
+
+                       bookingTableBody.innerHTML = '';
+                       if (data.length === 0) {
+                           bookingTableBody.innerHTML = '<tr><td colspan="6" class="text-center">ไม่มีข้อมูลการจอง</td></tr>';
+                           return;
+                       }
+                       data.forEach(booking => {
+                           const row = `<tr>
+                                           <td>${booking.room}</td>
+                                           <td>${booking.date}</td>
+                                           <td>${booking.time}</td>
+                                           <td>${booking.booker} (📞${booking.tel})</td>
+                                           <td>${booking.purpose}</td>
+                                           <td>${booking.timestamp}</td>
+                                        </tr>`;
+                           bookingTableBody.insertAdjacentHTML('beforeend', row);
+                       });
+                   } catch (error) {
+                       bookingTableBody.innerHTML = `<tr><td colspan="6" class="text-center text-danger">เกิดข้อผิดพลาดในการโหลดข้อมูลการจอง: ${error.message}</td></tr>`;
+                   }
                }
-           }
+
+               // ฟังก์ชันสำหรับ fetch "รายชื่อห้อง" (โค้ดเดิมของคุณ)
+               async function fetchRooms() {
+                   const url = `${webAppUrl}?action=getRooms`;
+                   try {
+                       const response = await fetch(url);
+                       if (!response.ok) throw new Error('Network response was not ok.');
+
+                       const roomList = await response.json();
+                       if (roomList.error) throw new Error(roomList.message);
+
+                       roomDropdown.innerHTML = '<option value="">-- กรุณาเลือกห้อง --</option>';
+                       roomList.forEach(room => {
+                           const option = `<option value="${room}">${room}</option>`;
+                           roomDropdown.insertAdjacentHTML('beforeend', option);
+                       });
+                   } catch (error) {
+                       roomDropdown.innerHTML = `<option value="">เกิดข้อผิดพลาด: ${error.message}</option>`;
+                   }
+               }
    </script>
 <!-- //////////////////////// -->
-   <script>
+  <script>
 
-  document.getElementById("bookingForm").addEventListener("submit", async function (e) {
-    e.preventDefault();
-    e.stopPropagation();
+    document.getElementById("bookingForm").addEventListener("submit", async function (e) {
+      e.preventDefault();
+      e.stopPropagation();
 
-    const btn = document.getElementById("submitBtn");
-    const btnText = document.getElementById("btnText");
-    const btnSpinner = document.getElementById("btnSpinner");
-    const alertArea = document.getElementById("alertArea");
+      const btn = document.getElementById("submitBtn");
+      const btnText = document.getElementById("btnText");
+      const btnSpinner = document.getElementById("btnSpinner");
+      const alertArea = document.getElementById("alertArea");
 
-    const form = document.getElementById('bookingForm');
-    if (!form.checkValidity()) {
-      form.classList.add('was-validated');
-      alertArea.innerHTML = "";
-      return;
-    }
-
-    // แสดง loading
-    btn.disabled = true;
-    btnText.textContent = "กำลังส่ง...";
-    btnSpinner.classList.remove("d-none");
-    alertArea.innerHTML = "";
-
-    // เก็บค่าจาก form
-    const data = {
-      route: "save",
-      contactName: document.getElementById("contactName").value,
-      contactPhone: document.getElementById("contactPhone").value,
-      room: document.getElementById("roomDropdown").value,
-      date: document.getElementById("dateInput").value,
-      startTime: document.getElementById("startTime").value,
-      endTime: document.getElementById("endTime").value,
-      purpose: document.getElementById("purpose").value
-    };
-
-    try {
-      const res = await fetch(webAppUrl + "?route=save", {
-        method: "POST",
-        body: JSON.stringify(data)
-      });
-
-      const result = await res.json();
-
-
-      if (result.status === "success") {
-        alertArea.innerHTML = `<div class="alert alert-success">${result.message}</div>`;
-        form.reset();
-        form.classList.remove("was-validated");
-        fetchBookings();
-      } else {
-        let conflictDetails = "";
-        if (result.conflicts) {
-          conflictDetails = result.conflicts.map(c =>
-            `• เวลา: ${c.existingStart} - ${c.existingEnd} <br/>` +
-            `  ผู้จอง: ${c.contactName} (${c.contactPhone}) <br/>` +
-            `  วัตถุประสงค์: ${c.purpose}`
-          ).join("<br/><br/>");
-        }
-        alertArea.innerHTML = `
-          <div class="alert alert-danger">
-            ${result.message} <br/><br/>
-            ${conflictDetails}
-          </div>
-        `;
+      const form = document.getElementById('bookingForm');
+      if (!form.checkValidity()) {
+        form.classList.add('was-validated');
+        alertArea.innerHTML = "";
+        return;
       }
-    } catch (err) {
-      alertArea.innerHTML = `<div class="alert alert-danger">❌ เกิดข้อผิดพลาด: ${err}</div>`;
-    }
 
-    // reset ปุ่ม
-    btn.disabled = false;
-    btnText.textContent = "ส่งคำขอ";
-    btnSpinner.classList.add("d-none");
-  });
-</script>
+      // แสดง loading
+      btn.disabled = true;
+      btnText.textContent = "กำลังส่ง...";
+      btnSpinner.classList.remove("d-none");
+      alertArea.innerHTML = "";
+
+      // เก็บค่าจาก form
+      const data = {
+        route: "save",
+        contactName: document.getElementById("contactName").value,
+        contactPhone: document.getElementById("contactPhone").value,
+        room: document.getElementById("roomDropdown").value,
+        date: document.getElementById("dateInput").value,
+        startTime: document.getElementById("startTime").value,
+        endTime: document.getElementById("endTime").value,
+        purpose: document.getElementById("purpose").value
+      };
+
+      try {
+        const res = await fetch(webAppUrl + "?route=save", {
+          method: "POST",
+          body: JSON.stringify(data)
+        });
+
+        const result = await res.json();
 
 
+        if (result.status === "success") {
+          alertArea.innerHTML = `<div class="alert alert-success">${result.message}</div>`;
+          form.reset();
+          form.classList.remove("was-validated");
+          fetchBookings();
+        } else {
+          let conflictDetails = "";
+          if (result.conflicts) {
+            conflictDetails = result.conflicts.map(c =>
+              `• เวลา: ${c.existingStart} - ${c.existingEnd} <br/>` +
+              `  ผู้จอง: ${c.contactName} (${c.contactPhone}) <br/>` +
+              `  วัตถุประสงค์: ${c.purpose}`
+            ).join("<br/><br/>");
+          }
+          alertArea.innerHTML = `
+            <div class="alert alert-danger">
+              ${result.message} <br/><br/>
+              ${conflictDetails}
+            </div>
+          `;
+        }
+      } catch (err) {
+        alertArea.innerHTML = `<div class="alert alert-danger">❌ เกิดข้อผิดพลาด: ${err}</div>`;
+      }
 
-
+      // reset ปุ่ม
+      btn.disabled = false;
+      btnText.textContent = "ส่งคำขอ";
+      btnSpinner.classList.add("d-none");
+    });
+  </script>
 
   </body>
 </html>

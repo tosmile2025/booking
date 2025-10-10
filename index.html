@@ -1,682 +1,195 @@
 <!DOCTYPE html>
-<html lang="en">
-
+<html lang="th">
 <head>
-  <meta charset="UTF-8" />
-  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>บันทึกการเข้างาน</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <script src="https://static.line-scdn.net/liff/edge/2.1/sdk.js"></script>
-  <link rel="icon" type="image/x-icon" href="bud.ico">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ปฏิทินจองห้องประชุม</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet">
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.13/index.global.min.js'></script>
+
+    <style>
+      body {
+        font-family: 'Sarabun', sans-serif;
+        background-color: #f8f9fa;
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+        margin: 0;
+      }
+
+      .main-content {
+        flex: 1;
+      }
+
+      #calendar-container {
+        height: 80vh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      #calendar {
+        flex-grow: 1;
+      }
+
+      .fc .fc-toolbar-title {
+          font-size: 1.75rem;
+      }
+
+      .fc-daygrid-event {
+          white-space: normal !important;
+          height: auto !important;
+          font-size: 0.75em !important;
+          line-height: 1.3;
+          /* --- ⭐️ จุดที่ 1: แก้ไขจาก flex-start เป็น center --- */
+          align-items: center !important; /* จัดให้เนื้อหาทั้งหมดอยู่กึ่งกลางแนวตั้ง */
+      }
+
+      .fc-event-time {
+          font-size: 0.9em !important;
+      }
+
+      /* --- ⭐️ จุดที่ 2: เพิ่มโค้ดส่วนนี้เข้ามาใหม่ --- */
+      /* สำหรับลดขนาดจุดวงกลมหน้า Event */
+      .fc-daygrid-event-dot {
+        border-width: 3px !important; /* ลดขนาดเส้นขอบ (ซึ่งก็คือตัวจุด) */
+        margin-top: 2px !important; /* อาจจะต้องปรับ margin เล็กน้อยเพื่อให้สมดุล */
+        margin-top: 0px !important;
+      }
+
+      .live-clock-footer {
+        text-align: center;
+        padding: 10px 0;
+        color: #6c757d;
+        background-color: #e9ecef;
+        font-size: 0.9rem;
+      }
+    </style>
 </head>
+<body>
 
-<body class="bg-white h-screen">
-  <div class="max-w-md mx-auto p-6">
-    <!-- ส่วน HTML ด้านบนเหมือนเดิม -->
-    <div class="bg-slate-800 border rounded-lg text-white text-center mb-4 py-8 px-4">
-      <div class="daytime">
-        <div id="date"></div>
-        <div class="text-5xl font-bold" id="time"></div>
-        <input type="date" id="todayInput" name="todayInput" class="hidden" /><input type="time" id="currentTime"
-          name="currentTime" class="hidden" />
-      </div>
+    <div class="modal fade" id="loadingModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="loadingModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered border-0">
+            <div class="modal-content" style="background-color: transparent; border: none;">
+                <div class="modal-body text-center">
+                    <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-3 fs-5 text-white">กำลังโหลดข้อมูล...</p>
+                </div>
+            </div>
+        </div>
     </div>
-    <div id="step1">
-      <div class="relative bg-slate-100 p-4 rounded-lg">
-        <div id="loadingOverlay"
-          class="hidden absolute top-0 left-0 w-full h-full bg-white/80 flex items-center justify-center z-[1000]">
-          <div class="text-center text-gray-800">ค้นหารายชื่อ..</div>
-        </div>
-        <div class="w-full p-2 space-y-6">
-          <div class="relative">
-            <label for="columnBData"
-              class="absolute -top-2 left-3 text-xs bg-slate-100 px-1 text-slate-800 font-semibold">ชื่อ-นามสกุล</label><input
-              type="text" class="w-full px-4 py-3 text-sm bg-slate-100 border-2 border-slate-800 rounded-xl"
-              id="columnBData" name="columnBData" required />
-          </div>
-        </div>
-        <div class="w-full p-2 space-y-6">
-          <div class="relative">
-            <label for="columnCData"
-              class="absolute -top-2 left-3 text-xs bg-slate-100 px-1 text-slate-800 font-semibold">รหัส นสพ.</label><input
-              type="text" class="w-full px-4 py-3 text-sm bg-slate-100 border-2 border-slate-800 rounded-xl"
-              id="columnCData" name="columnCData" required />
-          </div>
-        </div>
-        <div class="w-full p-2 space-y-6">
-          <div class="relative">
-            <label for="columnDData"
-              class="absolute -top-2 left-3 text-xs bg-slate-100 px-1 text-slate-800 font-semibold">ชั้นปี</label><input
-              type="text" class="w-full px-4 py-3 text-sm bg-slate-100 border-2 border-slate-800 rounded-xl"
-              id="columnDData" name="columnDData" required />
-          </div>
-        </div>
-        <input type="hidden" id="userId" name="userId" /><input type="hidden" id="columnAData" name="columnAData" />
-      </div>
 
-      <input type="hidden" id="jobInput" name="jobInput" required /><textarea
-        class="w-full border border-gray-300 rounded-lg p-4 text-gray-700" placeholder="    " id="noteInput"></textarea>
-      <div class="bg-slate-800 text-white text-center rounded-lg my-4">
-        <button class="p-4 w-full" onclick="nextStep()">ถัดไป</button>
-      </div>
-    </div>
-    <!-- ส่วน HTML ที่เหลือ (Step 2, Step 3) เหมือนเดิม -->
-    <div id="step2" class="hidden text-center">
-      <div class="photo pb-4">
-        <center>
-          <video id="camera-preview" width="70%" height="auto" autoplay playsinline
-            poster="https://upload.wikimedia.org/wikipedia/commons/thumb/6/65/No-Image-Placeholder.svg/330px-No-Image-Placeholder.svg.png"
-            class="rounded-lg"></video>
-        </center>
-        <center>
-          <img id="preview" width="70%" height="auto" alt="" required class="rounded-lg" />
-        </center>
-        <div class="flex justify-center space-x-4 my-4 px-8">
-          <button class="w-full text-sm text-center py-2 px-4 rounded-lg bg-[#001D53] text-white" id="start-camera-btn">
-            เปิดกล้อง</button><button class="w-full text-sm text-center py-4 px-4 rounded-lg bg-green-500 text-white"
-            id="capture-btn" disabled>
-            ถ่ายรูป</button><button id="switch-camera-btn" class="py-2 px-4 rounded-lg bg-slate-100 text-black"
-            disabled>
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" color="#000000"
-              fill="none">
-              <path
-                d="M15.1667 0.999756L15.7646 2.11753C16.1689 2.87322 16.371 3.25107 16.2374 3.41289C16.1037 3.57471 15.6635 3.44402 14.7831 3.18264C13.9029 2.92131 12.9684 2.78071 12 2.78071C6.75329 2.78071 2.5 6.90822 2.5 11.9998C2.5 13.6789 2.96262 15.2533 3.77093 16.6093M8.83333 22.9998L8.23536 21.882C7.83108 21.1263 7.62894 20.7484 7.7626 20.5866C7.89627 20.4248 8.33649 20.5555 9.21689 20.8169C10.0971 21.0782 11.0316 21.2188 12 21.2188C17.2467 21.2188 21.5 17.0913 21.5 11.9998C21.5 10.3206 21.0374 8.74623 20.2291 7.39023"
-                stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-          </button>
-        </div>
-      </div>
-      <div class="input-group py-4 flex justify-between space-x-4">
-        <button class="w-full text-center p-4 rounded-lg bg-gray-300" onclick="prevStep()">
-          กลับ</button><button class="w-full text-center p-4 rounded-lg bg-slate-800 text-white"
-          onclick="checkPictureAndNextStep()">
-          ถัดไป
-        </button>
-      </div>
-    </div>
-    <div id="step3" class="hidden text-center">
-      <div class="submit">
-        <div class="w-full mb-4 rounded-lg bg-slate-800 text-white">
-          <button type="button" onclick="getLocation()" class="w-full p-4 rounded-lg animate-pulse">
-            กดเพื่อยืนยันที่อยู่ของคุณ
-          </button>
-        </div>
-        <div id="locationInfo" name="locationInfo" class="bg-white p-4 rounded-lg shadow-sm max-w-sm mx-auto my-4">
-          <div class="flex justify-between">
-            <p id="latitude" class="text-gray-700 font-medium pb-2">
-              Latitude:
-            </p>
-            <p id="longitude" class="text-gray-700 font-medium pb-2">
-              Longitude:
-            </p>
-          </div>
-          <p id="fullAddress" class="h-18 overflow-hidden">สถานที่</p>
-        </div>
-        <input type="hidden" id="latitudeInput" name="latitudeInput" /><input type="hidden" id="longitudeInput"
-          name="longitudeInput" /><input type="hidden" id="fullAddressInput" name="fullAddressInput" required />
-      </div>
-      <iframe id="mapIframe" class="p-2 rounded-lg shadow-md h-40 overflow-hidden" width="100%" height="240"
-        frameborder="0" style="border: 0" allowfullscreen="" aria-hidden="false" tabindex="0"></iframe>
-      <div class="input-group my-4 py-4 flex justify-between">
-        <button class="w-1/4 text-center p-4 m-2 rounded-lg bg-gray-300" onclick="prevStep()">
-          กลับ</button><button id="submitButton"
-          class="w-3/4 text-center p-4 m-2 rounded-lg bg-gray-400 text-white cursor-not-allowed" onclick="submitForm()"
-          disabled>
-          บันทึกข้อมูล
-        </button>
-      </div>
-    </div>
-  </div>
-  <script src=" Config.js"></script>
-  <script>
-    const Latitude = 16.808200;  //กำหนดพื้นที่
-    const Longitude = 100.264197;  //กำหนดพื้นที่
-    const Range = 30;  //ระยะเป็นเมตร
 
-    // **แก้ไข 2: ตั้งค่า jobInput เป็น 'เข้างาน' เมื่อโหลด**
-    window.onload = async function () {
-      document.getElementById("jobInput").value = "เข้างาน";
-      await initializeLiff();
-    };
+    <div class="container-fluid p-3 p-md-4">
+      <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <h1 class="m-0">📆 ปฏิทินการจองห้องประชุม</h1>
+        <a id="booking-btn" class="btn btn-primary" href="booking.html" role="button">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-plus-lg" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 2a.5.5 0 0 1 .5.5v5h5a.5.5 0 0 1 0 1h-5v5a.5.5 0 0 1-1 0v-5h-5a.5.5 0 0 1 0-1h5v-5A.5.5 0 0 1 8 2"/></svg>
+          สร้างการจองใหม่
+        </a>
+      </div>
+        <div class="card shadow-sm">
+            <div class="card-body" id="calendar-container">
+                <div id='calendar'></div>
+            </div>
+        </div>
+    </div>
+ <footer class="live-clock-footer">
+   <div id="live-clock"></div>
+ </footer>
 
-    // Script ที่เหลือทั้งหมดเหมือนเดิม
-    async function initializeLiff() {
-      try {
-        await liff.init({ liffId: `${LIFF_ID}` });
-        if (liff.isLoggedIn()) {
-          getUserProfile();
-        } else {
-          liff.login();
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="Config.js"></script>
+
+    <script>
+        // --- ⭐️ วาง URL ที่ได้จากการ Deploy ของคุณที่นี่ ⭐️ ---
+        const webAppUrl = `${WEB_APP_DATA}`;
+
+        // ⭐️ 1. เพิ่มฟังก์ชัน updateClock กลับเข้ามา ⭐️
+        function updateClock() {
+            const now = new Date();
+            const options = {
+                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+                hour: '2-digit', minute: '2-digit', second: '2-digit'
+            };
+            const thaiYear = now.getFullYear() + 543;
+            let thaiDateString = now.toLocaleDateString('th-TH', options).replace(now.getFullYear(), thaiYear);
+            document.getElementById('live-clock').innerHTML = thaiDateString;
         }
-      } catch (error) {
-        console.error("Error initializing LIFF:", error);
-      }
-    }
-    async function getUserProfile() {
-      try {
-        const profile = await liff.getProfile();
-        document.getElementById("userId").value = profile.userId;
-        await fetchData(profile.userId);
-      } catch (error) {
-        console.error("Error getting profile data:", error);
-      }
-    }
-    async function fetchData(userId) {
-      showLoading(true);
-      try {
-        const response = await fetch(`${WEB_APP_MEMBER_URL}`, {
-          method: "POST",
-          body: JSON.stringify({ action: "fetchData", userId: userId }),
-        });
-        const data = await response.json();
-        const userRows = data.filter((row) => row[1] === userId);
-        if (userRows.length > 0) {
-          userRows.sort((a, b) => new Date(b[6]) - new Date(a[6]));
-          displayData(userRows[0]);
-        }
-      } catch (error) {
-        console.error("Error fetching data:", error);
-      } finally {
-        showLoading(false);
-      }
-    }
-    function displayData(row) {
-      document.getElementById("columnAData").value = row[1] || "";
-      document.getElementById("columnBData").value = row[2] || "";
-      document.getElementById("columnCData").value = row[3] || "";
-      document.getElementById("columnDData").value = row[4] || "";
-    }
-    function showLoading(isLoading) {
-      const overlay = document.getElementById("loadingOverlay");
-      const inputs = document.querySelectorAll("input, textarea");
-      if (isLoading) {
-        overlay.classList.remove("hidden");
-        overlay.classList.add("flex");
-        inputs.forEach((input) => (input.disabled = true));
-      } else {
-        overlay.classList.remove("flex");
-        overlay.classList.add("hidden");
-        inputs.forEach((input) => (input.disabled = false));
-      }
-    }
-    const url = `${WEB_APP_URL}`;
-    const columnBData = document.querySelector("#columnBData");
-    const columnCData = document.querySelector("#columnCData");
-    const jobInput = document.querySelector("#jobInput");
-    const noteInput = document.querySelector("#noteInput");
-    const todayInput = document.querySelector("#todayInput");
-    const currentTime = document.querySelector("#currentTime");
-    const latitudeInput = document.querySelector("#latitudeInput");
-    const longitudeInput = document.querySelector("#longitudeInput");
-    const fullAddressInput = document.querySelector("#fullAddressInput");
-    const userId = document.querySelector("#userId");
-    const preview = document.getElementById("preview");
-    document.addEventListener("DOMContentLoaded", function () {
-      const video = document.getElementById("camera-preview");
-      const startCameraBtn = document.getElementById("start-camera-btn");
-      const captureBtn = document.getElementById("capture-btn");
-      const switchCameraBtn = document.getElementById("switch-camera-btn");
-      const previewImage = document.getElementById("preview");
-      let stream;
-      let currentFacingMode = "user";
-      function startCamera() {
-        navigator.mediaDevices
-          .getUserMedia({ video: { facingMode: currentFacingMode } })
-          .then(function (videoStream) {
-            stream = videoStream;
-            video.srcObject = videoStream;
-            captureBtn.disabled = false;
-            switchCameraBtn.disabled = false;
-            video.style.display = "block";
-            previewImage.style.display = "none";
-          })
-          .catch(function (error) {
-            console.error("Error accessing the camera: ", error);
-            alert("ไม่สามารถเข้าถึงกล้องได้ กรุณาตรวจสอบการอนุญาต.");
-          });
-      }
-      function capturePhoto() {
-        const canvas = document.createElement("canvas");
-        const context = canvas.getContext("2d");
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
-        previewImage.src = canvas.toDataURL("image/png");
-        previewImage.style.display = "block";
-        video.style.display = "none";
-      }
-      function switchCamera() {
-        if (stream) {
-          stream.getTracks().forEach((track) => track.stop());
-        }
-        currentFacingMode =
-          currentFacingMode === "environment" ? "user" : "environment";
-        startCamera();
-      }
-      startCameraBtn.addEventListener("click", startCamera);
-      captureBtn.addEventListener("click", capturePhoto);
-      switchCameraBtn.addEventListener("click", switchCamera);
-    });
-    function checkPictureAndNextStep() {
-      const capturedImage = document.getElementById("preview").src;
-      if (!capturedImage || capturedImage.includes("No-Image-Placeholder")) {
-        Swal.fire({
-          title: "แจ้งเตือน!",
-          text: "กรุณาถ่ายรูปก่อนที่จะไปยังขั้นตอนถัดไป",
-          icon: "warning",
-          confirmButtonText: "OK",
-        });
-      } else {
-        nextStep();
-      }
-    }
-    function submitForm() {
-      if (
-        !columnBData.value ||
-        !columnCData.value ||
-        !jobInput.value ||
-        !latitudeInput.value ||
-        !longitudeInput.value
-      ) {
-        Swal.fire({
-          title: "แจ้งเตือน!",
-          text: "กรุณากรอกข้อมูลที่จำเป็น (*) ให้ครบถ้วน",
-          icon: "warning",
-          confirmButtonText: "OK",
-        });
-        return;
-      }
-      Swal.fire({
-        title: "ยืนยันการส่งข้อมูล",
-        text: "คุณแน่ใจหรือไม่ที่ต้องการส่งข้อมูล?",
-        icon: "question",
-        showCancelButton: true,
-        confirmButtonText: "ยืนยัน",
-        cancelButtonText: "ยกเลิก",
-      }).then((result) => {
-        if (result.isConfirmed) {
-          document.getElementById("submitButton").disabled = true;
-          Swal.fire({
-            title: "กำลังบันทึกข้อมูล",
-            text: "กรุณารอสักครู่...",
-            showConfirmButton: false,
-            allowOutsideClick: false,
-            didOpen: () => {
-              Swal.showLoading();
-            },
-          });
-          let spt = preview.src.split("base64,")[1];
-          let obj = {
-            base64: spt,
-            name: columnBData.value,
-            role: columnCData.value,
-            job: jobInput.value,
-            note: noteInput.value,
-            today: todayInput.value,
-            time: currentTime.value,
-            lat: latitudeInput.value,
-            long: longitudeInput.value,
-            address: fullAddressInput.value,
-            user: userId.value,
-          };
-          fetch(url, { method: "POST", body: JSON.stringify(obj) })
-            .then((response) => response.text())
-            .then((data) => {
-              Swal.close();
-              Swal.fire({
-                title: "สำเร็จ!",
-                text: "บันทึกข้อมูลของคุณเรียบร้อย!",
-                icon: "success",
-                confirmButtonText: "ปิด",
-              }).then(() => {
-                sendFlexMessage();
-              });
-            })
-            .catch((error) => {
-              Swal.close();
-              Swal.fire({
-                title: "Error!",
-                text: "Form submission failed. Please try again.",
-                icon: "error",
-                confirmButtonText: "OK",
-              }).then(() => {
-                document.getElementById("submitButton").disabled = false;
-              });
-              console.error(error);
+
+        document.addEventListener('DOMContentLoaded', function() {
+
+           // ⭐️ 2. เพิ่มการเรียกใช้งานนาฬิกา 2 บรรทัดนี้ ⭐️
+           updateClock();
+           setInterval(updateClock, 1000);
+
+            // 3. เตรียมตัวแปรสำหรับควบคุม Popup Modal
+            const loadingModalElement = document.getElementById('loadingModal');
+            const loadingModal = new bootstrap.Modal(loadingModalElement);
+
+            const calendarEl = document.getElementById('calendar');
+            const calendar = new FullCalendar.Calendar(calendarEl, {
+
+                themeSystem: 'bootstrap5',
+                locale: 'th',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,timeGridWeek,listWeek'
+                },
+                buttonText: {
+                    today: 'วันนี้', month: 'เดือน', week: 'สัปดาห์', list: 'รายการ'
+                },
+                height: '100%',
+                // 4. ลบ initialDate ออก เพื่อให้ปฏิทินเปิดที่เดือนปัจจุบันเสมอ
+
+                /**
+                 * ส่วนของ Fetch Data ที่มีการควบคุม Popup
+                 */
+                events: function(fetchInfo, successCallback, failureCallback) {
+
+                    // 5. แสดง Popup "กำลังโหลด..." ก่อนเริ่มดึงข้อมูล
+                    loadingModal.show();
+
+                    const url = webAppUrl + '?action=getCalendarEvents';
+
+                    fetch(url)
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error('Network response was not ok');
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            // 6. ซ่อน Popup เมื่อดึงข้อมูลสำเร็จ
+                            loadingModal.hide();
+
+                            if (data.error) {
+                                throw new Error(data.message || 'Error from Google Script');
+                            }
+                            successCallback(data);
+                        })
+                        .catch(error => {
+                            // 7. ซ่อน Popup แม้ว่าจะเกิดข้อผิดพลาด
+                            loadingModal.hide();
+
+                            console.error('Fetch Error:', error);
+                            failureCallback(error);
+                        });
+                },
+
+                // ฟังก์ชันสำหรับจัดการเมื่อการโหลดข้อมูลล้มเหลว
+                eventSourceFailure: function(error) {
+                    alert('ไม่สามารถโหลดข้อมูลการจองได้ กรุณาลองใหม่อีกครั้ง');
+                }
             });
-        }
-      });
-    }
-    async function sendFlexMessage() {
-      let jobColor = "#0D9608FF";
-      const flexMessage = {
-        type: "flex",
-        altText: "จดบันทึกเวลางาน",
-        contents: {
-          type: "bubble",
-          direction: "ltr",
-          body: {
-            type: "box",
-            layout: "vertical",
-            spacing: "md",
-            contents: [
-              {
-                type: "box",
-                layout: "horizontal",
-                contents: [
-                  {
-                    type: "text",
-                    text: "บันทึกเวลาปฎิบัติงาน",
-                    weight: "bold",
-                    size: "md",
-                    align: "start",
-                    margin: "sm",
-                    contents: [],
-                  },
-                  {
-                    type: "text",
-                    text: `${jobInput.value}`,
-                    weight: "bold",
-                    size: "md",
-                    color: jobColor,
-                    align: "end",
-                    contents: [],
-                  },
-                ],
-              },
-              { type: "separator" },
-              {
-                type: "box",
-                layout: "vertical",
-                spacing: "sm",
-                contents: [
-                  {
-                    type: "box",
-                    layout: "baseline",
-                    contents: [
-                      {
-                        type: "text",
-                        text: "ชื่อ นสพ.",
-                        weight: "bold",
-                        size: "sm",
-                        margin: "sm",
-                        contents: [],
-                      },
-                      {
-                        type: "text",
-                        text: `${columnBData.value}`,
-                        size: "sm",
-                        color: "#000000FF",
-                        align: "end",
-                        contents: [],
-                      },
-                    ],
-                  },
-                  {
-                    type: "box",
-                    layout: "baseline",
-                    contents: [
-                      {
-                        type: "text",
-                        text: "ชั้นปี",
-                        weight: "bold",
-                        size: "sm",
-                        flex: 0,
-                        margin: "sm",
-                        contents: [],
-                      },
-                      {
-                        type: "text",
-                        text: `${columnCData.value}`,
-                        size: "sm",
-                        color: "#000000FF",
-                        align: "end",
-                        contents: [],
-                      },
-                    ],
-                  },
-                ],
-              },
-              { type: "separator" },
-              {
-                type: "box",
-                layout: "vertical",
-                contents: [
-                  {
-                    type: "box",
-                    layout: "baseline",
-                    contents: [
-                      {
-                        type: "text",
-                        text: "วันที่",
-                        weight: "bold",
-                        contents: [],
-                      },
-                      {
-                        type: "text",
-                        text: `${getFormattedDate()}`,
-                        weight: "bold",
-                        align: "end",
-                        contents: [],
-                      },
-                    ],
-                  },
-                  {
-                    type: "box",
-                    layout: "baseline",
-                    contents: [
-                      {
-                        type: "text",
-                        text: "เวลา",
-                        weight: "bold",
-                        contents: [],
-                      },
-                      {
-                        type: "text",
-                        text: `${currentTime.value}`,
-                        weight: "bold",
-                        size: "xl",
-                        color: "#EF2F14FF",
-                        align: "end",
-                        contents: [],
-                      },
-                    ],
-                  },
-                ],
-              },
-              { type: "separator" },
-              {
-                type: "box",
-                layout: "vertical",
-                spacing: "xs",
-                margin: "sm",
-                contents: [
-                  {
-                    type: "text",
-                    text: "สถานที่",
-                    weight: "bold",
-                    size: "sm",
-                    margin: "md",
-                    contents: [],
-                  },
-                  {
-                    type: "text",
-                    text: fullAddressInput.value
-                      ? `${fullAddressInput.value}`
-                      : "ข้อมูลไม่พร้อมแสดง แต่เราเก็บพิกัดของคุณเรียบร้อย",
-                    wrap: true,
-                    contents: [],
-                  },
-                ],
-              },
-            ],
-          },
-        },
-      };
-      await liff.sendMessages([flexMessage]);
-      liff.closeWindow();
-    }
-    function updateDateTime() {
-      const dateElement = document.getElementById("date");
-      const timeElement = document.getElementById("time");
-      const now = new Date();
-      const dateOptions = {
-        weekday: "long",
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      };
-      const timeOptions = {
-        hour: "numeric",
-        minute: "numeric",
-        second: "numeric",
-        hour12: false,
-        timeZone: "Asia/Bangkok",
-      };
-      const formattedDate = now.toLocaleDateString("th-TH", dateOptions);
-      const formattedTime = now.toLocaleTimeString("en-US", timeOptions);
-      dateElement.textContent = formattedDate;
-      timeElement.textContent = formattedTime;
-    }
-    setInterval(updateDateTime, 1000);
-    updateDateTime();
 
-    // **แก้ไข 3: ลบ Event Listener ที่ไม่จำเป็นออกไป**
-    // document.querySelectorAll('input[name="switch-job"]').forEach... (ส่วนนี้ถูกลบ)
+            calendar.render();
+        });
+    </script>
 
-    function calculateDistance(lat1, lon1, lat2, lon2) {
-      const R = 6371e3;
-      const φ1 = (lat1 * Math.PI) / 180;
-      const φ2 = (lat2 * Math.PI) / 180;
-      const Δφ = ((lat2 - lat1) * Math.PI) / 180;
-      const Δλ = ((lon2 - lon1) * Math.PI) / 180;
-      const a =
-        Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-        Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    }
-    function getLocation() {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(displayLocation, showError);
-      } else {
-        Swal.fire(
-          "ไม่รองรับ",
-          "บราวเซอร์ของคุณไม่รองรับ Geolocation",
-          "error"
-        );
-      }
-    }
-    function showError(error) {
-      let message = "";
-      switch (error.code) {
-        case error.PERMISSION_DENIED:
-          message = "คุณปฏิเสธการเข้าถึงตำแหน่ง";
-          break;
-        case error.POSITION_UNAVAILABLE:
-          message = "ไม่สามารถค้นหาตำแหน่งได้";
-          break;
-        case error.TIMEOUT:
-          message = "หมดเวลาในการค้นหาตำแหน่ง";
-          break;
-        default:
-          message = "เกิดข้อผิดพลาดที่ไม่รู้จัก";
-          break;
-      }
-      Swal.fire("เกิดข้อผิดพลาด", message, "error");
-    }
-    function displayLocation(position) {
-      const latitude = position.coords.latitude;
-      const longitude = position.coords.longitude;
-      document.getElementById(
-        "latitude"
-      ).innerText = `Latitude: ${latitude.toFixed(6)}`;
-      document.getElementById(
-        "longitude"
-      ).innerText = `Longitude: ${longitude.toFixed(6)}`;
-      document.getElementById("latitudeInput").value = latitude;
-      document.getElementById("longitudeInput").value = longitude;
-      const submitButton = document.getElementById("submitButton");
-      const distance = calculateDistance(
-        latitude,
-        longitude,
-        Latitude,
-        Longitude
-      );
-      if (distance > Range) {
-        Swal.fire({
-          icon: "error",
-          title: "คุณอยู่นอกพื้นที่!",
-          text: `ระยะห่างจากจุดที่กำหนด: ${distance.toFixed(
-            0
-          )} เมตร ไม่สามารถบันทึกข้อมูลได้`,
-          confirmButtonText: "รับทราบ",
-        });
-        submitButton.disabled = true;
-        submitButton.classList.add("bg-gray-400", "cursor-not-allowed");
-        submitButton.classList.remove("bg-slate-800");
-      } else {
-        Swal.fire({
-          icon: "success",
-          title: "ตำแหน่งถูกต้อง!",
-          text: `คุณอยู่ในพื้นที่ที่กำหนด (ระยะห่าง ${distance.toFixed(
-            0
-          )} เมตร)`,
-          timer: 3000,
-          showConfirmButton: false,
-        });
-        submitButton.disabled = false;
-        submitButton.classList.remove("bg-gray-400", "cursor-not-allowed");
-        submitButton.classList.add("bg-slate-800");
-      }
-      const reverseGeocodingUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`;
-      fetch(reverseGeocodingUrl)
-        .then((response) => response.json())
-        .then((data) => {
-          document.getElementById("fullAddress").innerText = data.display_name
-            ? `ที่อยู่ของคุณ: ${data.display_name}`
-            : "ไม่สามารถดึงข้อมูลที่อยู่ได้";
-          document.getElementById("fullAddressInput").value =
-            data.display_name || "";
-        });
-      const mapsUrl = `https://www.google.com/maps?q=${latitude},${longitude}&output=embed`;
-      document.getElementById("mapIframe").src = mapsUrl;
-    }
-    function getCurrentTimeInBangkok() {
-      const now = new Date();
-      const bangkokTime = new Date(
-        now.toLocaleString("en-US", { timeZone: "Asia/Bangkok" })
-      );
-      const hours = String(bangkokTime.getHours()).padStart(2, "0");
-      const minutes = String(bangkokTime.getMinutes()).padStart(2, "0");
-      return `${hours}:${minutes}`;
-    }
-    document.getElementById("currentTime").value = getCurrentTimeInBangkok();
-    function getFormattedDate() {
-      const today = new Date();
-      const year = today.getFullYear();
-      const month = String(today.getMonth() + 1).padStart(2, "0");
-      const day = String(today.getDate()).padStart(2, "0");
-      return `${day}/${month}/${year}`;
-    }
-    document.getElementById("todayInput").value = getFormattedDate();
-    let currentStep = 1;
-    function nextStep() {
-      if (currentStep < 3) {
-        document.getElementById(`step${currentStep}`).style.display = "none";
-        currentStep++;
-        document.getElementById(`step${currentStep}`).style.display = "block";
-      }
-    }
-    function prevStep() {
-      if (currentStep > 1) {
-        document.getElementById(`step${currentStep}`).style.display = "none";
-        currentStep--;
-        document.getElementById(`step${currentStep}`).style.display = "block";
-      }
-    }
-  </script>
 </body>
-
 </html>
